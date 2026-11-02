@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>POIN Quest · Protekinaja</title>
+<meta name="description" content="Checklist kegiatan harian agen asuransi. Setiap aksi jadi XP, target harian jadi misi.">
+<meta name="theme-color" content="#EEF4FC">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="POIN Quest">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="boot" class="boot" role="status">Memuat POIN Quest…</div>
+
+<main id="setup" class="auth" hidden>
+  <div class="auth-card">
+    <div class="brand"><i></i>POIN Quest</div>
+    <section class="game-panel">
+      <h1 class="auth-title">Belum tersambung ke Supabase</h1>
+      <p class="help">Isi alamat proyek dan kunci publik Supabase di file <b>config.js</b>, simpan, lalu muat ulang halaman ini. Langkahnya ada di panduan setup, bagian 3.</p>
+    </section>
+  </div>
+</main>
+
+<main id="auth" class="auth" hidden>
+  <div class="auth-card">
+    <div class="brand"><i></i>POIN Quest</div>
+    <p class="auth-lead"><b>Tim Protekinaja.</b> Checklist kegiatan harian agen asuransi. Setiap aksi jadi XP, target harian jadi misi.</p>
+    <section class="game-panel auth-panel" aria-label="Masuk atau daftar">
+      <div class="seg-tabs" role="tablist" aria-label="Pilih masuk atau daftar">
+        <button type="button" role="tab" id="auth-tab-in" aria-selected="true" aria-controls="auth-form">Masuk</button>
+        <button type="button" role="tab" id="auth-tab-up" aria-selected="false" aria-controls="auth-form">Daftar</button>
+      </div>
+      <form id="auth-form" novalidate>
+        <label class="field" id="f-name" for="auth-name" hidden><span>Nama untuk rekap (opsional)</span><input type="text" id="auth-name" autocomplete="name" maxlength="60" placeholder="Nama lengkap"></label>
+        <label class="field" for="auth-email"><span>Email</span><input type="email" id="auth-email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="nama@email.com"></label>
+        <label class="field" for="auth-pass"><span>Kata sandi</span><input type="password" id="auth-pass" autocomplete="current-password" minlength="8" placeholder="Minimal 8 karakter"></label>
+        <p class="field-err" id="auth-err" role="alert"></p>
+        <button class="btn btn-primary" id="auth-submit" type="submit">Masuk</button>
+      </form>
+      <p class="help" id="auth-help">Lupa kata sandi? Minta admin tim mengatur ulang dari Supabase.</p>
+    </section>
+  </div>
+</main>
+
+<div id="shell" class="shell" hidden>
+  <nav class="side" aria-label="Navigasi utama">
+    <div class="brand"><i></i>POIN Quest</div>
+    <button class="nav-btn" data-nav="today" id="nav-today"></button>
+    <button class="nav-btn" data-nav="schedule" id="nav-schedule"></button>
+    <button class="nav-btn" data-nav="names" id="nav-names"></button>
+    <button class="nav-btn" data-nav="progress" id="nav-progress"></button>
+    <button class="nav-btn" data-nav="settings" id="nav-settings"></button>
+    <p class="side-note">Tim Protekinaja · Sistem Management Kegiatan</p>
+  </nav>
+  <main class="app">
+    <div id="banner" class="banner" role="status" hidden></div>
+    <section id="view-today" class="view" aria-label="Misi hari ini"></section>
+    <section id="view-schedule" class="view" aria-label="Jadwal" hidden></section>
+    <section id="view-names" class="view" aria-label="Daftar Nama" hidden></section>
+    <section id="view-progress" class="view" aria-label="Progres" hidden></section>
+    <section id="view-settings" class="view" aria-label="Pengaturan" hidden></section>
+  </main>
+</div>
+<nav class="tabbar" aria-label="Navigasi utama" hidden>
+  <button class="tab" data-nav="today" id="tab-today"></button>
+  <button class="tab" data-nav="schedule" id="tab-schedule"></button>
+  <button class="tab" data-nav="names" id="tab-names"></button>
+  <button class="tab" data-nav="progress" id="tab-progress"></button>
+  <button class="tab" data-nav="settings" id="tab-settings"></button>
+</nav>
+<div id="toast" class="toast" hidden></div>
+<div id="stamp" class="stamp-wrap" hidden></div>
+<div id="sheet-wrap" class="sheet-wrap" hidden><div id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"></div></div>
+<div id="live" class="sr-only" aria-live="polite"></div>
+
+<script src="vendor/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.browser.min.js" defer></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
