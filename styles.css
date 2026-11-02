@@ -357,3 +357,5 @@ a.chip-btn{text-decoration:none}
 .task.done .t-title{text-decoration:line-through;color:var(--ink-2)}
 
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+#s-text,#set-invite,#set-inviten{font:inherit;font-size:15px;line-height:1.5}
+#s-profwrap .chips+*,#s-profwrap .field+.field{margin-top:10px}

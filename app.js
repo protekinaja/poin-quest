@@ -167,8 +167,21 @@ var DEFAULT_CONFIG = {
     { id:'a5', name:'Follow Up Referensi',         points:1, cap:0, icon:'users',        hint:'Nama referensi' },
     { id:'a6', name:'Telpon Nasabah, Bikin Janji', points:1, cap:0, icon:'phone',        hint:'Nama nasabah' },
     { id:'a7', name:'Ikut Training di Vision',     points:2, cap:1, icon:'grad',         hint:'Topik training' }
-  ]
+  ],
+  inviteN: 'Haii {sapaan} {nama}! Aku sekarang di Allianz Syariah nih. Izin mau market survey ke kamu soal income protection, sekiranya berkenan ndak? Hehe. By zoom boleh, ketemu juga boleh, nanti aku yang samperin 🙏 No worries ini gak harus beli yaa {sapaan}, cuma sharing aja',
+  invite: 'Haii {sapaan} {nama}! Aku sekarang bisnis di Allianz Syariah nih. Izin mau ceritain bisnisnya ke kamu, sekiranya berkenan ndak? Hehe. By zoom boleh, ketemu juga boleh, nanti aku yang samperin 🙏 No worries ini gak harus join yaa {sapaan}, cuma mau sharing aja sekalian denger POV kamu as a {profesi}'
 };
+var SAPAAN = ['Kak','Mas','Mba','Cici','Koko'];
+var PROFESI = ['Doctor','Banker','Lawyer','Businessman','Karyawan'];
+/* Fill the janji temu script. Empty profesi drops the "as a {profesi}" phrase. */
+function fillInvite(tpl, sapaan, nama, profesi){
+  var t = String(tpl || DEFAULT_CONFIG.invite);
+  profesi = String(profesi || '').trim();
+  if (!profesi) t = t.replace(/[ ,]*\b(as an?|sebagai) \{profesi\}/gi, '').replace(/\{profesi\}/g, '');
+  else t = t.replace(/\bas an? \{profesi\}/gi, (/^[aiueo]/i.test(profesi) ? 'as an ' : 'as a ') + '{profesi}');
+  return t.replace(/\{sapaan\}/g, sapaan || '').replace(/\{nama\}/g, nama || '').replace(/\{profesi\}/g, profesi)
+    .replace(/[ \t]+/g, ' ').replace(/ +([,.!?\n])/g, '$1').replace(/^ +| +$/gm, '');
+}
 function normalizeConfig(c){
   var d = DEFAULT_CONFIG; c = c || {};
   var min = Math.round(Number(c.minTarget)); if (!(min >= 1 && min <= 100)) min = d.minTarget;
@@ -183,7 +196,9 @@ function normalizeConfig(c){
   var per = Math.round(Number(c.namesPerDay)); if (!(per >= 0 && per <= 50)) per = 2;
   var nt = Math.round(Number(c.namesTarget)); if (!(nt >= 10 && nt <= 2000)) nt = 200;
   return { v: 1, minTarget: min, idealTarget: ideal, workdays: wd, recapName: String(c.recapName == null ? d.recapName : c.recapName).slice(0,60), activities: acts,
-    namesPerDay: per, namesTarget: nt, leadXP: c.leadXP !== false };
+    namesPerDay: per, namesTarget: nt, leadXP: c.leadXP !== false,
+    invite: (typeof c.invite === 'string' && c.invite.trim()) ? c.invite.slice(0, 1500) : d.invite,
+    inviteN: (typeof c.inviteN === 'string' && c.inviteN.trim()) ? c.inviteN.slice(0, 1500) : d.inviteN };
 }
 
 /* Supabase rows <-> the day map the UI works with */
@@ -796,6 +811,10 @@ function renderSettings(){
     '<section class="panel"><h2 class="panel-title">Rekap dan suara</h2><label class="field" for="set-name" style="margin-top:8px"><span>Nama di rekap WhatsApp</span><input type="text" id="set-name" maxlength="60" value="' + esc(c.recapName) + '"></label>' +
       '<div class="toggle"><span><b>Efek suara game</b><br><span class="help" style="margin:0">Hanya di perangkat ini</span></span><label class="switch"><input type="checkbox" id="set-sound"' + (S.sound ? ' checked' : '') + ' aria-label="Efek suara game"><span></span></label></div>' +
       '<div class="toggle"><span><b>XP otomatis dari Leads</b><br><span class="help" style="margin:0">Status naik ke Dihubungi atau Janji +1, Presentasi, Follow up, atau Closing +2</span></span><label class="switch"><input type="checkbox" id="set-leadxp"' + (c.leadXP ? ' checked' : '') + ' aria-label="XP otomatis dari Leads"><span></span></label></div></section>' +
+    '<section class="panel"><h2 class="panel-title">Script janji temu</h2><p class="help" style="margin-top:0">Dipakai tombol Script janji temu di Daftar Nama. <b>{sapaan}</b>, <b>{nama}</b>, dan <b>{profesi}</b> terisi otomatis.</p>' +
+      '<label class="field" for="set-inviten"><span>Untuk nasabah</span><textarea id="set-inviten" rows="6" maxlength="1500">' + esc(c.inviteN) + '</textarea></label>' +
+      '<label class="field" for="set-invite"><span>Untuk calon tim</span><textarea id="set-invite" rows="6" maxlength="1500">' + esc(c.invite) + '</textarea></label>' +
+      '<div style="margin-top:8px"><button type="button" class="btn btn-line" id="set-invite-reset">Kembalikan teks awal</button></div></section>' +
     '<section class="panel"><h2 class="panel-title">Akun</h2><p class="help" style="margin-top:0">Masuk sebagai <b>' + esc(S.user ? S.user.email : '') + '</b>. XP dan catatanmu hanya bisa dilihat akun ini, di setiap perangkat tempat kamu masuk.</p>' +
       '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-line" id="set-csv">' + ic('download', 18) + 'Unduh CSV</button>' +
       '<button type="button" class="btn btn-danger" id="set-logout">Keluar</button></div></section>' +
@@ -822,6 +841,8 @@ function markDirty(){ S.dirty = true; var b = $('#savebar'); if (b) b.hidden = f
     else if (el.id === 'set-names') c.namesPerDay = Math.round(Number(el.value));
     else if (el.id === 'set-ntarget') c.namesTarget = Math.round(Number(el.value));
     else if (el.id === 'set-leadxp') c.leadXP = el.checked;
+    else if (el.id === 'set-invite') c.invite = el.value;
+    else if (el.id === 'set-inviten') c.inviteN = el.value;
     else if (el.dataset.wd){ var n = Number(el.dataset.wd); c.workdays = c.workdays.filter(function(x){ return x !== n; }); if (el.checked) c.workdays.push(n); c.workdays.sort(); }
     else if (el.dataset.f){ var box = el.closest('[data-ea]'), a = c.activities.find(function(x){ return x.id === box.dataset.ea; }); if (!a) return;
       var f = el.dataset.f; a[f] = (f === 'points' || f === 'cap') ? Math.max(0, Math.round(Number(el.value) || 0)) : el.value; }
@@ -839,6 +860,7 @@ function markDirty(){ S.dirty = true; var b = $('#savebar'); if (b) b.hidden = f
     if (b.id === 'set-save'){ saveSettings(); return; }
     if (b.id === 'set-csv'){ exportCSV(); return; }
     if (b.id === 'set-logout'){ askLogout(); return; }
+    if (b.id === 'set-invite-reset'){ S.draft.invite = DEFAULT_CONFIG.invite; S.draft.inviteN = DEFAULT_CONFIG.inviteN; var t = $('#set-invite'), tn = $('#set-inviten'); if (t) t.value = S.draft.invite; if (tn) tn.value = S.draft.inviteN; markDirty(); return; }
     if (b.id === 'sheet-copy'){ copyFormula(); return; }
     if (b.id === 'sheet-retry'){ loadSheetToken(true); return; }
     if (b.id === 'sheet-rotate'){ askRotate(); return; }
@@ -1022,8 +1044,9 @@ function openContact(id){
   var c = id ? S.contacts.get(id) : null, isNew = !c, st = c ? c.stage : 'nama', wa = c ? waLink(c.phone) : '';
   openSheet('<div><h2 id="sheet-title">' + (isNew ? 'Tambah nama' : esc(c.name)) + '</h2><p class="sub">' +
       (isNew ? 'Masuk ke Daftar Nama dengan status Belum dihubungi.' : esc(stageLabel(c.stage)) + ' sejak ' + esc(fmtShort(isoDay(c.stage_at)))) + '</p></div>' +
-    (c && c.phone ? '<div class="backfill" style="margin-top:0">' + (wa ? '<a class="chip-btn" href="' + wa + '" target="_blank" rel="noopener">Chat WhatsApp</a>' : '') +
-      '<a class="chip-btn" href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '">Telepon ' + esc(c.phone) + '</a></div>' : '') +
+    (c ? '<div class="backfill" style="margin-top:0"><button type="button" class="chip-btn" id="c-script">' + ic('message', 16) + 'Script janji temu</button>' +
+      (wa ? '<a class="chip-btn" href="' + wa + '" target="_blank" rel="noopener">Chat WhatsApp</a>' : '') +
+      (c.phone ? '<a class="chip-btn" href="tel:' + esc(c.phone.replace(/[^\d+]/g, '')) + '">Telepon ' + esc(c.phone) + '</a>' : '') + '</div>' : '') +
     '<label class="field" for="c-name"><span>Nama</span><input type="text" id="c-name" maxlength="60" autocomplete="off" value="' + esc(c ? c.name : '') + '"' + (isNew ? ' autofocus' : '') + '></label>' +
     '<div class="row2" style="margin-top:0"><label class="field" for="c-phone"><span>No. HP / WA</span><input type="text" id="c-phone" inputmode="tel" maxlength="20" autocomplete="off" placeholder="0812..." value="' + esc(c ? c.phone : '') + '"></label>' +
     '<label class="field" for="c-source"><span>Sumber</span><select id="c-source">' + sourceOptions(c ? c.source : '') + '</select></label></div>' +
@@ -1036,6 +1059,7 @@ function openContact(id){
       '<button type="button" class="btn btn-line" id="c-cancel">Batal</button><button type="button" class="btn btn-primary" id="c-save">Simpan</button></div>',
     function(s){
       $('#c-cancel', s).addEventListener('click', closeSheet);
+      var sc = $('#c-script', s); if (sc) sc.addEventListener('click', function(){ closeSheet(); openScript(c); });
       $('#c-save', s).addEventListener('click', function(){
         var name = $('#c-name', s).value.trim();
         if (!name){ $('#c-err', s).textContent = 'Nama wajib diisi.'; $('#c-name', s).focus(); return; }
@@ -1046,6 +1070,46 @@ function openContact(id){
       if (!isNew) armDelete($('#c-del', s), function(){
         closeSheet(); putContacts([Object.assign({}, c, { deleted_at: new Date().toISOString() })]); toast('<b>' + esc(c.name) + '</b> dihapus dari Daftar Nama');
       });
+    });
+}
+function openScript(c, back){
+  var key = 'poinq.inv.' + c.id, saved = {};
+  try { saved = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch(e){}
+  var st = { jenis: saved.jenis === 'tim' ? 'tim' : 'nasabah', sapaan: saved.sapaan || 'Kak', nama: saved.nama || String(c.name).split(/\s+/)[0], profesi: saved.profesi == null ? '' : saved.profesi };
+  var wa = waLink(c.phone);
+  var chips = function(list, cur, attr){ return list.map(function(x){ return '<button type="button" class="chip-btn' + (x === cur ? ' on' : '') + '" data-' + attr + '="' + esc(x) + '" aria-pressed="' + (x === cur) + '">' + esc(x) + '</button>'; }).join(''); };
+  openSheet('<div><h2 id="sheet-title">Script janji temu</h2><p class="sub">Untuk ' + esc(c.name) + '. Pilih sapaan dan profesinya, lalu salin atau kirim lewat WhatsApp.</p></div>' +
+    '<div class="field"><span>Untuk</span><div class="chips" id="s-jenis"><button type="button" class="chip-btn" data-jenis="nasabah">Nasabah</button><button type="button" class="chip-btn" data-jenis="tim">Calon tim</button></div></div>' +
+    '<div class="field"><span>Sapaan</span><div class="chips" id="s-sap">' + chips(SAPAAN, st.sapaan, 'sap') + '</div></div>' +
+    '<label class="field" for="s-nama"><span>Nama panggilan</span><input type="text" id="s-nama" maxlength="40" autocomplete="off" value="' + esc(st.nama) + '"></label>' +
+    '<div id="s-profwrap"><div class="field"><span>Profesi (boleh kosong)</span><div class="chips" id="s-pro">' + chips(PROFESI, st.profesi, 'pro') + '</div></div>' +
+    '<label class="field" for="s-prof"><span>Atau tulis sendiri</span><input type="text" id="s-prof" maxlength="40" autocomplete="off" placeholder="Contoh: engineer" value="' + esc(PROFESI.indexOf(st.profesi) === -1 ? st.profesi : '') + '"></label></div>' +
+    '<label class="field" for="s-text"><span>Pesan (bisa diedit sebelum dikirim)</span><textarea id="s-text" rows="8"></textarea></label>' +
+    '<div class="sheet-actions"><button type="button" class="btn btn-line" id="s-close">' + (back ? 'Kembali' : 'Tutup') + '</button>' +
+    '<button type="button" class="btn btn-line" id="s-copy">' + ic('copy', 18) + 'Salin</button>' +
+    '<a class="btn btn-primary" id="s-wa" target="_blank" rel="noopener">Kirim di WhatsApp</a></div>' +
+    '<p class="help">' + (wa ? 'WhatsApp langsung terbuka ke nomor ' + esc(c.phone) + '.' : 'Belum ada nomor HP, jadi WhatsApp akan minta kamu memilih kontak.') + ' Teks script bisa diubah di Pengaturan.</p>',
+    function(s){
+      var ta = $('#s-text', s), waBtn = $('#s-wa', s);
+      var sync = function(){ waBtn.href = (wa || 'https://wa.me/') + '?text=' + encodeURIComponent(ta.value); };
+      var tpl = function(){ return st.jenis === 'tim' ? S.config.invite : S.config.inviteN; };
+      var fill = function(){ ta.value = fillInvite(tpl(), st.sapaan, st.nama, st.profesi); sync(); lsSet(key, st);
+        $('#s-profwrap', s).hidden = tpl().indexOf('{profesi}') === -1;
+        $$('[data-jenis]', s).forEach(function(b){ var on = b.dataset.jenis === st.jenis; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); };
+      $('#s-jenis', s).addEventListener('click', function(e){ var b = e.target.closest('[data-jenis]'); if (!b) return; st.jenis = b.dataset.jenis; fill(); });
+      var press = function(box, attr, val){ $$('[data-' + attr + ']', box).forEach(function(b){ var on = b.dataset[attr] === val; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); };
+      $('#s-sap', s).addEventListener('click', function(e){ var b = e.target.closest('[data-sap]'); if (!b) return; st.sapaan = b.dataset.sap; press($('#s-sap', s), 'sap', st.sapaan); fill(); });
+      $('#s-pro', s).addEventListener('click', function(e){ var b = e.target.closest('[data-pro]'); if (!b) return;
+        st.profesi = st.profesi === b.dataset.pro ? '' : b.dataset.pro; $('#s-prof', s).value = ''; press($('#s-pro', s), 'pro', st.profesi); fill(); });
+      $('#s-prof', s).addEventListener('input', function(e){ st.profesi = e.target.value.trim(); press($('#s-pro', s), 'pro', ''); fill(); });
+      $('#s-nama', s).addEventListener('input', function(e){ st.nama = e.target.value.trim(); fill(); });
+      ta.addEventListener('input', sync);
+      $('#s-close', s).addEventListener('click', function(){ closeSheet(); if (back) back(); });
+      $('#s-copy', s).addEventListener('click', function(){
+        var sel = function(){ ta.select(); toast('Teks sudah dipilih. Salin dengan menu atau Ctrl/⌘ C.'); };
+        try { navigator.clipboard.writeText(ta.value).then(function(){ toast('Script disalin'); }, sel); } catch(e){ sel(); }
+      });
+      fill();
     });
 }
 function openBulk(){
@@ -1074,13 +1138,15 @@ function openPick(){
     (list.length ? '<ul class="list picks">' + list.map(function(c){
         var wa = waLink(c.phone);
         return '<li class="pick"><div><b>' + esc(c.name) + '</b><span class="c-sub">' + esc([c.source, c.phone].filter(Boolean).join(' · ') || 'Belum ada nomor') + '</span></div>' +
-          '<div class="backfill" style="margin-top:6px">' + (wa ? '<a class="chip-btn" href="' + wa + '" target="_blank" rel="noopener">Chat WhatsApp</a>' : '') +
+          '<div class="backfill" style="margin-top:6px"><button type="button" class="chip-btn" data-script="' + esc(c.id) + '">' + ic('message', 16) + 'Script janji temu</button>' +
+          (wa ? '<a class="chip-btn" href="' + wa + '" target="_blank" rel="noopener">Chat WhatsApp</a>' : '') +
           '<button type="button" class="chip-btn" data-mark="' + esc(c.id) + '">' + ic('check', 16, 2.5) + 'Sudah dihubungi</button></div></li>'; }).join('') + '</ul>'
       : '<p class="empty">Semua nama di Daftar Nama sudah pernah dihubungi. Tambah nama baru untuk melanjutkan.</p>') +
     '<div class="sheet-actions">' + (list.length ? '' : '<button type="button" class="btn btn-line" id="pk-add">Tambah nama</button>') + '<button type="button" class="btn btn-primary" id="pk-close">Selesai</button></div>',
     function(s){
       $('#pk-close', s).addEventListener('click', closeSheet);
       var add = $('#pk-add', s); if (add) add.addEventListener('click', function(){ closeSheet(); go('names'); openContact(null); });
+      $$('[data-script]', s).forEach(function(b){ b.addEventListener('click', function(){ var c = S.contacts.get(b.dataset.script); if (c){ closeSheet(); openScript(c, openPick); } }); });
       $$('[data-mark]', s).forEach(function(b){ b.addEventListener('click', function(){
         var c = S.contacts.get(b.dataset.mark); if (!c || c.stage !== 'nama') return;
         saveContact(c, { stage: 'chat' });
