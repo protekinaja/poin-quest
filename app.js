@@ -168,8 +168,8 @@ var DEFAULT_CONFIG = {
     { id:'a6', name:'Telpon Nasabah, Bikin Janji', points:1, cap:0, icon:'phone',        hint:'Nama nasabah' },
     { id:'a7', name:'Ikut Training di Vision',     points:2, cap:1, icon:'grad',         hint:'Topik training' }
   ],
-  inviteN: 'Haii {sapaan} {nama}! Aku sekarang di Allianz Syariah nih. Izin mau market survey ke kamu soal income protection, sekiranya berkenan ndak? Hehe. By zoom boleh, ketemu juga boleh, nanti aku yang samperin 🙏 No worries ini gak harus beli yaa {sapaan}, cuma sharing aja',
-  invite: 'Haii {sapaan} {nama}! Aku sekarang bisnis di Allianz Syariah nih. Izin mau ceritain bisnisnya ke kamu, sekiranya berkenan ndak? Hehe. By zoom boleh, ketemu juga boleh, nanti aku yang samperin 🙏 No worries ini gak harus join yaa {sapaan}, cuma mau sharing aja sekalian denger POV kamu as a {profesi}'
+  inviteN: 'Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke kamu untuk income protection sekiranyaa berkenan ndaak? Hihi by zoom boleh ketemu boleh jugaaa nnt aku sampeerr 🫶 no worries ini gak harus beli yaaa {sapaan}, cuma sharing ajah',
+  invite: 'Haii {sapaan} {nama}! Aku kan sekarang bisnis di Allianz Syariah. Izinn mau jelasin bisnisnya ke kamu sekiranyaa berkenan ndaak? Hihi by zoom boleh ketemu boleh jugaaa nnt aku sampeerr 🫶 no worries ini gak harus join yaaa {sapaan}, cuma sharing POV ajah gimana dari sisi kamu as a {profesi}'
 };
 var SAPAAN = ['Kak','Mas','Mba','Cici','Koko'];
 var PROFESI = ['Doctor','Banker','Lawyer','Businessman','Karyawan'];
@@ -181,6 +181,13 @@ function fillInvite(tpl, sapaan, nama, profesi){
   else t = t.replace(/\bas an? \{profesi\}/gi, (/^[aiueo]/i.test(profesi) ? 'as an ' : 'as a ') + '{profesi}');
   return t.replace(/\{sapaan\}/g, sapaan || '').replace(/\{nama\}/g, nama || '').replace(/\{profesi\}/g, profesi)
     .replace(/[ \t]+/g, ' ').replace(/ +([,.!?\n])/g, '$1').replace(/^ +| +$/gm, '');
+}
+/* Older built-in script texts are swapped for the current one; texts the user wrote stay. */
+var OLD_INVITES = ['Hai {sapaan} {nama}\n\nAku sekarang bisnis di Allianz Syariah.', 'Haii {sapaan} {nama}! Aku sekarang di Allianz Syariah nih.', 'Haii {sapaan} {nama}! Aku sekarang bisnis di Allianz Syariah nih.'];
+function pickInvite(v, def){
+  if (typeof v !== 'string' || !v.trim()) return def;
+  if (OLD_INVITES.some(function(o){ return v.indexOf(o) === 0; })) return def;
+  return v.slice(0, 1500);
 }
 function normalizeConfig(c){
   var d = DEFAULT_CONFIG; c = c || {};
@@ -197,8 +204,17 @@ function normalizeConfig(c){
   var nt = Math.round(Number(c.namesTarget)); if (!(nt >= 10 && nt <= 2000)) nt = 200;
   return { v: 1, minTarget: min, idealTarget: ideal, workdays: wd, recapName: String(c.recapName == null ? d.recapName : c.recapName).slice(0,60), activities: acts,
     namesPerDay: per, namesTarget: nt, leadXP: c.leadXP !== false,
-    invite: (typeof c.invite === 'string' && c.invite.trim()) ? c.invite.slice(0, 1500) : d.invite,
-    inviteN: (typeof c.inviteN === 'string' && c.inviteN.trim()) ? c.inviteN.slice(0, 1500) : d.inviteN };
+    invite: pickInvite(c.invite, d.invite), inviteN: pickInvite(c.inviteN, d.inviteN) };
+}
+
+/* Admin's team rules (targets, points, workdays) override each member's own. */
+var TEAM_KEYS = ['minTarget','idealTarget','workdays','activities','namesPerDay','namesTarget','leadXP'];
+function teamPart(c){ var o = {}; TEAM_KEYS.forEach(function(k){ o[k] = clone(c[k]); }); return o; }
+function mergeTeam(personal, team){
+  if (!team || !Array.isArray(team.activities) || !team.activities.length) return personal;
+  var t = normalizeConfig(team), out = Object.assign({}, personal);
+  TEAM_KEYS.forEach(function(k){ out[k] = t[k]; });
+  return out;
 }
 
 /* Supabase rows <-> the day map the UI works with */
@@ -303,6 +319,7 @@ var P = {
   calendar:'<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
   crown:'<path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/>',
   flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
+  refresh:'<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/>',
   lock:'<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   copy:'<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
   download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>'
@@ -342,9 +359,14 @@ var S = {
   contacts: new Map(), tasks: new Map(), checks: new Map(), nameFilter: 'all', nameQuery: '', planDate: wibDate(Date.now()),
   draft: null, dirty: false, draftErr: '',
   sheet: { state: 'idle', token: null },
+  personal: normalizeConfig(null), team: null, isAdmin: false,
+  tm: { loaded: false, loading: false, err: '', period: 7, at: 0, profiles: [], entries: [], contacts: [], journals: [], admins: [] },
   sound: lsGet('poinq.sound') !== false
 };
 function key(k){ return 'poinq.' + S.uid + '.' + k; }
+function setPersonal(c){ S.personal = normalizeConfig(c); S.config = mergeTeam(S.personal, S.team); }
+function setTeam(t){ S.team = t && Array.isArray(t.activities) && t.activities.length ? t : null; S.config = mergeTeam(S.personal, S.team); }
+function teamLocked(){ return !!S.team && !S.isAdmin; }
 
 function entryOps(){ return S.pending.filter(function(o){ return o.kind === 'add' || o.kind === 'patch'; }); }
 function allDays(){ var ops = entryOps(); return ops.length ? applyOps(S.dbDays, ops) : S.dbDays; }
@@ -367,7 +389,7 @@ function saveCache(){
     S.dbDays.forEach(function(v, k){ if (k >= cutoff) days[k] = v; });
     var checks = {}, ccut = addDays(S.today, -60);
     S.checks.forEach(function(v, k){ if (k.slice(-10) >= ccut) checks[k] = v; });
-    lsSet(key('cache'), { config: S.config, days: days, journals: S.journals,
+    lsSet(key('cache'), { config: S.personal, team: S.team, isAdmin: S.isAdmin, days: days, journals: S.journals,
       contacts: Array.from(S.contacts.values()), tasks: Array.from(S.tasks.values()), checks: checks });
   }, 800);
 }
@@ -601,8 +623,8 @@ function openRecap(date){
 }
 
 /* ---------- navigation ---------- */
-var VIEWS = ['today','schedule','names','progress','settings'];
-var NAV = [['today','gamepad','Misi','Misi'],['schedule','calendar','Jadwal','Jadwal'],['names','users','Daftar Nama','Nama'],['progress','trophy','Progres','Progres'],['settings','sliders','Pengaturan','Atur']];
+var VIEWS = ['today','schedule','names','progress','team','settings'];
+var NAV = [['today','gamepad','Misi','Misi'],['schedule','calendar','Jadwal','Jadwal'],['names','users','Daftar Nama','Nama'],['progress','trophy','Progres','Progres'],['team','crown','Tim (Admin)','Tim'],['settings','sliders','Pengaturan','Atur']];
 NAV.forEach(function(n){
   $('#nav-' + n[0]).innerHTML = ic(n[1], 22) + '<span>' + n[2] + '</span>';
   $('#tab-' + n[0]).innerHTML = ic(n[1], 22) + '<span>' + n[3] + '</span>';
@@ -612,7 +634,13 @@ document.addEventListener('click', function(e){
   var b = e.target.closest('[data-nav]'); if (!b) return;
   go(b.dataset.nav);
 });
+function paintAdminNav(){
+  ['#nav-team', '#tab-team'].forEach(function(s){ var b = $(s); if (b) b.hidden = !S.isAdmin; });
+  document.body.classList.toggle('is-admin', !!S.isAdmin);
+  if (!S.isAdmin && S.view === 'team') go('today');
+}
 function go(view){
+  if (view === 'team' && !S.isAdmin) view = 'today';
   S.view = view;
   VIEWS.forEach(function(v){ $('#view-' + v).hidden = v !== view; });
   $$('[data-nav]').forEach(function(b){ if (b.dataset.nav === view) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
@@ -797,8 +825,10 @@ function renderSettings(){
       '<div><button type="button" class="btn btn-line" data-arch data-key="arch-' + id + '">' + (a.archived ? 'Aktifkan lagi' : 'Arsipkan') + '</button></div></div>';
   }).join('');
   root.innerHTML = '<header><p class="eyebrow">Pengaturan</p><h1 style="font-family:var(--font-game);font-size:26px;font-weight:800;line-height:1.2">Aturan main</h1></header>' +
+    (S.isAdmin ? '<p class="team-note admin">' + ic('crown', 18, 2.25) + '<span><b>Kamu admin tim.</b> Target, daftar aksi, besaran XP, dan hari kerja di sini berlaku untuk semua anggota Protekinaja.</span></p>'
+      : teamLocked() ? '<p class="team-note">' + ic('lock', 18, 2.25) + '<span>Target, daftar aksi, besaran XP, dan hari kerja diatur admin tim. Yang bisa kamu ubah: nama di rekap, suara, dan script janji temu.</span></p>' : '') +
     '<div class="set-grid">' +
-    '<section class="panel"><h2 class="panel-title">Target harian</h2><div class="row2">' +
+    '<section class="panel" id="sec-target"><h2 class="panel-title">Target harian</h2><div class="row2">' +
       '<label class="field" for="set-min"><span>CLEAR (minimal)</span><input type="number" inputmode="numeric" id="set-min" min="1" max="100" value="' + c.minTarget + '"></label>' +
       '<label class="field" for="set-ideal"><span>PERFECT (ideal)</span><input type="number" inputmode="numeric" id="set-ideal" min="2" max="200" value="' + c.idealTarget + '"></label></div>' +
       '<div class="row2"><label class="field" for="set-names"><span>Hubungi dari Daftar Nama per hari</span><input type="number" inputmode="numeric" id="set-names" min="0" max="50" value="' + c.namesPerDay + '"></label>' +
@@ -807,7 +837,7 @@ function renderSettings(){
       '<p class="field-err" id="set-err">' + esc(S.draftErr) + '</p></section>' +
     '<section class="panel set-acts"><h2 class="panel-title">Daftar aksi</h2><p class="help">Mengubah XP hanya berlaku untuk ketukan berikutnya. Aksi yang diarsipkan tetap tercatat di riwayat.</p><div class="edit-acts">' + acts + '</div>' +
       '<div style="margin-top:10px"><button type="button" class="btn btn-line" id="ea-add" data-key="ea-add">' + ic('plus', 18, 2.5) + 'Tambah aksi</button></div></section>' +
-    '<section class="panel"><h2 class="panel-title">Hari kerja</h2><p class="help">Hari kerja yang tidak CLEAR memutus combo. Hari libur tidak.</p><div class="daychips">' + wd + '</div></section>' +
+    '<section class="panel" id="sec-days"><h2 class="panel-title">Hari kerja</h2><p class="help">Hari kerja yang tidak CLEAR memutus combo. Hari libur tidak.</p><div class="daychips">' + wd + '</div></section>' +
     '<section class="panel"><h2 class="panel-title">Rekap dan suara</h2><label class="field" for="set-name" style="margin-top:8px"><span>Nama di rekap WhatsApp</span><input type="text" id="set-name" maxlength="60" value="' + esc(c.recapName) + '"></label>' +
       '<div class="toggle"><span><b>Efek suara game</b><br><span class="help" style="margin:0">Hanya di perangkat ini</span></span><label class="switch"><input type="checkbox" id="set-sound"' + (S.sound ? ' checked' : '') + ' aria-label="Efek suara game"><span></span></label></div>' +
       '<div class="toggle"><span><b>XP otomatis dari Leads</b><br><span class="help" style="margin:0">Status naik ke Dihubungi atau Janji +1, Presentasi, Follow up, atau Closing +2</span></span><label class="switch"><input type="checkbox" id="set-leadxp"' + (c.leadXP ? ' checked' : '') + ' aria-label="XP otomatis dari Leads"><span></span></label></div></section>' +
@@ -825,6 +855,7 @@ function renderSettings(){
       '<li>Masuk dengan email dan kata sandi yang sama di setiap perangkat.</li></ol></section>' +
     '</div>' +
     '<div class="savebar" id="savebar"' + (S.dirty ? '' : ' hidden') + '><span>Ada perubahan aturan main</span><span style="display:flex;gap:8px"><button type="button" class="btn btn-line" id="set-reset">Batalkan</button><button type="button" class="btn btn-primary" id="set-save">Simpan</button></span></div>';
+  if (teamLocked()) $$('#sec-target input, .set-acts input, .set-acts select, .set-acts button, #sec-days input, #set-leadxp', root).forEach(function(el){ el.disabled = true; });
 }
 function markDirty(){ S.dirty = true; var b = $('#savebar'); if (b) b.hidden = false; }
 (function bindSettings(){
@@ -876,11 +907,17 @@ async function saveSettings(){
   else if (!c.activities.some(function(a){ return !a.archived; })) err = 'Sisakan minimal satu aksi aktif.';
   if (err){ S.draftErr = err; var e = $('#set-err'); if (e) { e.textContent = err; e.scrollIntoView({ block: 'center' }); } return; }
   var next = normalizeConfig(c); next.updatedAt = Date.now();
-  S.config = next; S.draft = null; S.dirty = false; S.draftErr = ''; saveCache(); render();
-  var res;
+  var locked = teamLocked(), admin = S.isAdmin, team = admin ? teamPart(next) : null;
+  if (locked) TEAM_KEYS.forEach(function(k){ next[k] = clone(S.personal[k]); });
+  var nameChanged = next.recapName !== S.personal.recapName;
+  S.personal = next; if (admin) S.team = team; S.config = mergeTeam(S.personal, S.team);
+  S.draft = null; S.dirty = false; S.draftErr = ''; saveCache(); render();
+  var res, tres = null;
   try { res = await api.saveSettings(next); } catch(e){ res = { error: e }; }
-  if (res && res.error) toast('Tersimpan di perangkat ini, tapi belum ke akun. Simpan lagi saat online.');
-  else toast('Aturan main tersimpan');
+  if (admin){ try { tres = await api.saveTeamConfig(team); } catch(e){ tres = { error: e }; } }
+  if (nameChanged){ try { api.saveProfile(next.recapName, S.user.email); } catch(e){} }
+  if ((res && res.error) || (tres && tres.error)) toast('Tersimpan di perangkat ini, tapi belum ke akun. Simpan lagi saat online.');
+  else toast(admin ? 'Aturan main tim tersimpan. Berlaku untuk semua anggota.' : 'Pengaturan tersimpan');
 }
 function exportCSV(){
   var blob = new Blob([toCSV(allDays(), S.config)], { type: 'text/csv;charset=utf-8' });
@@ -1036,8 +1073,8 @@ function sourceOptions(sel){ return '<option value="">Pilih sumber</option>' + S
 function armDelete(btn, run){
   btn.addEventListener('click', function(){
     if (btn.dataset.armed){ run(); return; }
-    btn.dataset.armed = '1'; btn.textContent = 'Ketuk lagi untuk menghapus';
-    setTimeout(function(){ if (document.contains(btn)){ delete btn.dataset.armed; btn.textContent = 'Hapus'; } }, 4000);
+    var label = btn.textContent; btn.dataset.armed = '1'; btn.textContent = 'Ketuk lagi untuk ' + (label === 'Cabut' ? 'mencabut' : 'menghapus');
+    setTimeout(function(){ if (document.contains(btn)){ delete btn.dataset.armed; btn.textContent = label; } }, 4000);
   });
 }
 function openContact(id){
@@ -1242,11 +1279,143 @@ document.addEventListener('click', function(e){
   if (t.closest('#p-today')){ S.planDate = S.today; renderSchedule(); $('#p-next').focus(); return; }
 });
 
+/* ---------- admin: team dashboard ---------- */
+var TM_PERIODS = [[1,'Hari ini'],[7,'7 hari'],[30,'30 hari']];
+async function loadTeam(){
+  if (!S.isAdmin || S.tm.loading) return;
+  S.tm.loading = true; S.tm.err = ''; if (S.view === 'team') renderTeam();
+  try {
+    var from = addDays(S.today, -60);
+    var r = await Promise.all([api.teamRows('profiles', 'created_at'), api.teamRows('entries', 'created_at', 'entry_date', from),
+      api.teamRows('contacts', 'created_at'), api.teamRows('journals', 'day', 'day', from), api.listAdmins()]);
+    var bad = r.find(function(x){ return x.error; }); if (bad) throw bad.error;
+    S.tm.profiles = r[0].data; S.tm.entries = r[1].data; S.tm.contacts = r[2].data; S.tm.journals = r[3].data;
+    S.tm.admins = (r[4].data || []).map(function(x){ return x.email; });
+    S.tm.loaded = true; S.tm.at = Date.now();
+  } catch(err){ S.tm.err = isNetErr(err) ? 'Sedang offline. Data tim butuh internet.' : 'Data tim belum bisa dimuat: ' + (err.message || 'galat tak dikenal'); }
+  S.tm.loading = false; if (S.view === 'team') renderTeam();
+}
+/* One summary per member, from that member's own rows. */
+function teamMembers(){
+  var cfg = S.config, today = S.today, n = S.tm.period, from = addDays(today, 1 - n);
+  var byUser = {}, people = {};
+  S.tm.profiles.forEach(function(p){ people[p.user_id] = p; });
+  S.tm.entries.forEach(function(e){ (byUser[e.user_id] = byUser[e.user_id] || []).push(e); if (!people[e.user_id]) people[e.user_id] = { user_id: e.user_id, name: '', email: '' }; });
+  var cByUser = {}; S.tm.contacts.forEach(function(c){ if (!c.deleted_at) (cByUser[c.user_id] = cByUser[c.user_id] || []).push(c); });
+  return Object.keys(people).map(function(id){
+    var p = people[id], days = applyRows(new Map(), byUser[id] || []), cs = cByUser[id] || [];
+    var td = days.get(today), tTot = dayTotal(td), per = period(days, cfg, from, today, today), acts = actCounts(days, from, today);
+    var last = 0; (byUser[id] || []).forEach(function(e){ if (!e.deleted_at){ var t = Date.parse(e.created_at) || 0; if (t > last) last = t; } });
+    var contacted = cs.filter(function(c){ var d = isoDay(c.contacted_at); return d && d >= from && d <= today; }).length;
+    return { id: id, name: p.name || (p.email ? p.email.split('@')[0] : 'Tanpa nama'), email: p.email || '', days: days, contacts: cs,
+      today: tTot, todayS: statusOf(tTot, targetsFor(td, cfg)), xp: per.xp, clear: per.clear, work: per.work,
+      streak: currentStreak(days, cfg, today), closing: (acts.a3 || { n: 0 }).n, pres: (acts.a1 || { n: 0 }).n,
+      contacted: contacted, active: cs.filter(function(c){ return !!ACTIVE[c.stage]; }).length, names: cs.length, last: last };
+  }).sort(function(a, b){ return b.xp - a.xp || b.today - a.today || a.name.localeCompare(b.name); });
+}
+function rankChip(s, tot){ return '<span class="rank" data-s="' + s + '">' + (s === 'ideal' ? 'PERFECT' : s === 'met' ? 'CLEAR' : tot ? 'BERJALAN' : 'BELUM MAIN') + '</span>'; }
+function renderTeam(){
+  var root = $('#view-team'); if (!S.isAdmin){ root.innerHTML = ''; return; }
+  if (!S.tm.loaded && !S.tm.loading && !S.tm.err){ loadTeam(); }
+  var head = '<header class="tm-head"><div><p class="eyebrow">Dashboard admin</p><h1 class="h1g">Tim Protekinaja</h1></div>' +
+    '<button type="button" class="btn btn-line btn-sm" id="tm-refresh"' + (S.tm.loading ? ' disabled' : '') + '>' + ic('refresh', 18) + (S.tm.loading ? 'Memuat…' : 'Muat ulang') + '</button></header>';
+  if (!S.tm.loaded){
+    root.innerHTML = head + '<section class="panel"><p class="' + (S.tm.err ? 'field-err' : 'empty') + '">' + esc(S.tm.err || 'Memuat data anggota…') + '</p></section>';
+    bindTeam(root); return;
+  }
+  var ms = teamMembers(), n = S.tm.period, plabel = n === 1 ? 'hari ini' : n + ' hari terakhir';
+  var tot = ms.reduce(function(a, m){ a.xp += m.xp; a.closing += m.closing; a.contacted += m.contacted; if (m.today > 0) a.play++; if (m.today >= S.config.minTarget) a.clear++; return a; }, { xp: 0, closing: 0, contacted: 0, play: 0, clear: 0 });
+  var chips = '<div class="chips" role="group" aria-label="Periode">' + TM_PERIODS.map(function(x){ var on = n === x[0];
+    return '<button type="button" class="chip-btn' + (on ? ' on' : '') + '" data-tmp="' + x[0] + '" aria-pressed="' + on + '">' + x[1] + '</button>'; }).join('') + '</div>';
+  var rows = ms.length ? ms.map(function(m){
+    return '<li><button type="button" class="tm-row" data-member="' + esc(m.id) + '">' +
+      '<span class="tm-who"><b>' + esc(m.name) + '</b><small>' + esc(m.email) + '</small></span>' +
+      '<span class="tm-now">' + rankChip(m.todayS, m.today) + '<b class="num">' + m.today + ' XP</b><small>hari ini</small></span>' +
+      '<span class="tm-nums">' +
+        '<span><b class="num">' + m.xp + '</b><small>XP</small></span>' +
+        '<span><b class="num">' + m.clear + '<i>/' + m.work + '</i></b><small>hari CLEAR</small></span>' +
+        '<span><b class="num">' + m.streak + '</b><small>combo</small></span>' +
+        '<span><b class="num">' + m.contacted + '</b><small>dihubungi</small></span>' +
+        '<span><b class="num">' + m.pres + '</b><small>presentasi</small></span>' +
+        '<span><b class="num">' + m.closing + '</b><small>closing</small></span>' +
+      '</span>' +
+      '<span class="tm-last">' + (m.last ? 'Aksi terakhir ' + esc(fmtShort(wibDate(m.last)).replace(/ \d{4}$/, '')) + ', ' + wibTime(m.last) : 'Belum pernah mencatat aksi') + ' · ' + m.names + ' nama, ' + m.active + ' leads aktif</span>' +
+      '</button></li>'; }).join('') : '<li class="empty">Belum ada anggota. Minta tim mendaftar di aplikasi dengan email masing-masing.</li>';
+  var admins = '<ul class="list tm-admins">' + S.tm.admins.map(function(e){ var me = S.user && e === String(S.user.email).toLowerCase();
+      return '<li><span>' + esc(e) + (me ? ' <small>(kamu)</small>' : '') + '</span>' + (me ? '' : '<button type="button" class="btn btn-line btn-sm" data-unadmin="' + esc(e) + '">Cabut</button>') + '</li>'; }).join('') + '</ul>';
+  root.innerHTML = head +
+    '<div class="tm-grid">' +
+    '<section class="game-panel tm-sum"><div class="tm-sum-head"><p class="eyebrow">Ringkasan · ' + esc(plabel) + '</p>' + chips + '</div>' +
+      '<div class="stats">' +
+        '<div class="stat"><p class="eyebrow">Main hari ini</p><p class="v num">' + tot.play + '<small>/ ' + ms.length + '</small></p><p class="s">anggota sudah dapat XP</p></div>' +
+        '<div class="stat"><p class="eyebrow">CLEAR hari ini</p><p class="v num">' + tot.clear + '<small>/ ' + ms.length + '</small></p><p class="s">capai ' + S.config.minTarget + ' XP</p></div>' +
+        '<div class="stat"><p class="eyebrow">XP tim</p><p class="v num">' + tot.xp + '</p><p class="s">' + esc(plabel) + '</p></div>' +
+        '<div class="stat"><p class="eyebrow">Closing</p><p class="v num">' + tot.closing + '</p><p class="s">' + tot.contacted + ' nama dihubungi</p></div>' +
+      '</div></section>' +
+    '<section class="panel tm-list"><h2 class="panel-title">Anggota <span class="count">' + ms.length + ' orang · urut XP ' + esc(plabel) + '</span></h2><ul class="list">' + rows + '</ul>' +
+      '<p class="help">Ketuk nama untuk melihat XP harian, aksi, leads, dan catatan hariannya. Diperbarui ' + wibTime(S.tm.at) + '.</p></section>' +
+    '<section class="panel tm-adm"><h2 class="panel-title">Admin tim</h2><p class="help" style="margin-top:0">Admin bisa melihat data semua anggota dan mengatur target serta besaran XP di menu Atur.</p>' + admins +
+      '<div class="tm-add"><label class="field" for="tm-email"><span>Tambah admin (email akun aplikasi)</span><input type="email" id="tm-email" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="leader@email.com"></label>' +
+      '<button type="button" class="btn btn-primary btn-sm" id="tm-add">Tambah</button></div><p class="field-err" id="tm-err" role="alert"></p></section>' +
+    '</div>';
+  bindTeam(root);
+}
+function bindTeam(root){
+  var r = $('#tm-refresh', root); if (r) r.addEventListener('click', function(){ loadTeam(); });
+  $$('[data-tmp]', root).forEach(function(b){ b.addEventListener('click', function(){ S.tm.period = Number(b.dataset.tmp); renderTeam(); var x = $('[data-tmp="' + b.dataset.tmp + '"]'); if (x) x.focus(); }); });
+  $$('[data-member]', root).forEach(function(b){ b.addEventListener('click', function(){ openMember(b.dataset.member); }); });
+  $$('[data-unadmin]', root).forEach(function(b){ armDelete(b, async function(){
+    var res; try { res = await api.removeAdmin(b.dataset.unadmin); } catch(e){ res = { error: e }; }
+    if (res.error) toast('Gagal mencabut admin. Coba lagi saat online.'); else { toast(esc(b.dataset.unadmin) + ' bukan admin lagi'); loadTeam(); }
+  }); });
+  var add = $('#tm-add', root); if (add) add.addEventListener('click', async function(){
+    var inp = $('#tm-email', root), em = inp.value.trim().toLowerCase(), err = $('#tm-err', root);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){ err.textContent = 'Tulis email yang valid.'; inp.focus(); return; }
+    if (S.tm.admins.indexOf(em) !== -1){ err.textContent = 'Email ini sudah admin.'; return; }
+    add.disabled = true; var res; try { res = await api.addAdmin(em); } catch(e){ res = { error: e }; }
+    add.disabled = false;
+    if (res.error){ err.textContent = 'Gagal menambah admin: ' + (res.error.message || 'coba lagi'); return; }
+    toast('<b>' + esc(em) + '</b> sekarang admin. Berlaku saat dia membuka aplikasi lagi.'); loadTeam();
+  });
+}
+function openMember(id){
+  var m = teamMembers().find(function(x){ return x.id === id; }); if (!m) return;
+  var cfg = S.config, today = S.today, days = m.days, n = S.tm.period, from = addDays(today, 1 - n);
+  var bars = '', max = cfg.idealTarget;
+  for (var i = 13; i >= 0; i--){ var d = addDays(today, -i), t = dayTotal(days.get(d)); if (t > max) max = t; }
+  for (var k = 13; k >= 0; k--){
+    var dd = addDays(today, -k), day = days.get(dd), tt = dayTotal(day), s = statusOf(tt, targetsFor(day, cfg));
+    bars += '<div class="tm-bar" title="' + esc(fmtShort(dd)) + ': ' + tt + ' XP"><b class="num">' + (tt || '') + '</b><i data-s="' + s + '" style="height:' + Math.max(tt ? 6 : 2, tt / max * 100) + '%"></i><small' + (isWork(cfg, dd) ? '' : ' class="off"') + '>' + Number(dd.slice(8)) + '</small></div>';
+  }
+  var acts = actCounts(days, from, today);
+  var actRows = cfg.activities.filter(function(a){ return acts[a.id]; }).map(function(a){ return '<tr><td>' + esc(a.name) + '</td><td class="n">' + acts[a.id].n + '×</td><td class="n">' + acts[a.id].xp + '</td></tr>'; }).join('');
+  Object.keys(acts).forEach(function(aid){ if (!cfg.activities.some(function(a){ return a.id === aid; })) actRows += '<tr><td>Aksi lama</td><td class="n">' + acts[aid].n + '×</td><td class="n">' + acts[aid].xp + '</td></tr>'; });
+  var stageCount = {}; m.contacts.forEach(function(c){ stageCount[c.stage] = (stageCount[c.stage] || 0) + 1; });
+  var stages = STAGES.map(function(x){ return '<span class="chip-btn static">' + x[1] + ' <b class="num">' + (stageCount[x[0]] || 0) + '</b></span>'; }).join('');
+  var leads = m.contacts.slice().sort(function(a, b){ return String(b.stage_at).localeCompare(String(a.stage_at)); }).slice(0, 60).map(function(c){
+    return '<li class="tm-lead"><span><b>' + esc(c.name) + '</b>' + (c.note ? '<small>' + esc(c.note) + '</small>' : '') + '</span><span class="stage" data-st="' + c.stage + '">' + esc(stageLabel(c.stage)) + '</span></li>'; }).join('');
+  var js = S.tm.journals.filter(function(j){ return j.user_id === id && j.body && j.day >= addDays(today, -13); }).sort(function(a, b){ return b.day.localeCompare(a.day); })
+    .map(function(j){ return '<li><p class="eyebrow">' + esc(fmtShort(j.day)) + '</p><p class="j-read">' + esc(j.body) + '</p></li>'; }).join('');
+  var log = [];
+  for (var q = 0; q < 7; q++){ var ld = addDays(today, -q); liveEntries(days.get(ld)).reverse().forEach(function(e){ log.push({ d: ld, e: e }); }); }
+  var logHtml = log.slice(0, 40).map(function(x){ return '<li class="tm-log"><span class="e-time">' + esc(x.d === today ? wibTime(x.e.t) : fmtShort(x.d).split(',')[0].slice(0, 3) + ' ' + wibTime(x.e.t)) + '</span><span><b>' + esc(actName(cfg, x.e.a)) + '</b>' + (x.e.n ? '<small>' + esc(x.e.n) + '</small>' : '') + '</span><span class="e-xp num">+' + x.e.p + '</span></li>'; }).join('');
+  var st = computeStats(days, cfg, today);
+  openSheet('<div><h2 id="sheet-title">' + esc(m.name) + '</h2><p class="sub">' + esc(m.email) + ' · Lv ' + st.L.lv + ' ' + esc(st.L.title) + ' · combo ' + m.streak + ' hari</p></div>' +
+    '<div><p class="sec-label">XP 14 hari terakhir</p><div class="tm-bars">' + bars + '</div><p class="help">Hijau CLEAR (' + cfg.minTarget + '+ XP), kuning PERFECT (' + cfg.idealTarget + '+), oranye belum CLEAR. Tanggal abu-abu = hari libur.</p></div>' +
+    '<div><p class="sec-label">Aksi · ' + (n === 1 ? 'hari ini' : n + ' hari terakhir') + '</p>' + (actRows ? '<div class="tbl-wrap"><table><thead><tr><th>Aksi</th><th class="n">Jumlah</th><th class="n">XP</th></tr></thead><tbody>' + actRows + '</tbody></table></div>' : '<p class="empty">Tidak ada aksi di periode ini.</p>') + '</div>' +
+    '<div><p class="sec-label">Daftar Nama dan Leads · ' + m.names + ' nama</p><div class="chips">' + stages + '</div>' + (leads ? '<ul class="list" style="margin-top:8px">' + leads + '</ul>' : '') + '</div>' +
+    '<div><p class="sec-label">Catatan harian · 14 hari</p>' + (js ? '<ul class="list tm-journal">' + js + '</ul>' : '<p class="empty">Belum ada catatan.</p>') + '</div>' +
+    '<div><p class="sec-label">Log 7 hari</p>' + (logHtml ? '<ul class="list">' + logHtml + '</ul>' : '<p class="empty">Belum ada aksi.</p>') + '</div>' +
+    '<div class="sheet-actions"><button type="button" class="btn btn-primary" id="tm-close">Tutup</button></div>',
+    function(s){ $('#tm-close', s).addEventListener('click', closeSheet); });
+}
+
 /* ---------- render root ---------- */
 function render(){
   if (S.view === 'today') renderToday();
   else if (S.view === 'progress') renderProgress();
   else if (S.view === 'schedule') renderSchedule();
+  else if (S.view === 'team') renderTeam();
   else if (S.view === 'names'){ var fa = document.activeElement; if (fa && fa.id === 'n-q') paintNameList(); else renderNames(); }
   else if (S.view === 'settings' && !S.dirty){
     var ae = document.activeElement;
@@ -1360,12 +1529,12 @@ function makeApi(sb){
     signIn: function(email, pw){ return sb.auth.signInWithPassword({ email: email, password: pw }); },
     signUp: function(email, pw, name){ return sb.auth.signUp({ email: email, password: pw, options: { data: { name: name } } }); },
     signOut: function(){ return sb.auth.signOut({ scope: 'local' }); },
-    loadSettings: function(){ return sb.from('settings').select('data').maybeSingle(); },
-    loadJournals: function(fromDate){ return sb.from('journals').select('day,body').gte('day', fromDate).limit(1000); },
+    loadSettings: function(){ return sb.from('settings').select('data').eq('user_id', S.uid).maybeSingle(); },
+    loadJournals: function(fromDate){ return sb.from('journals').select('day,body').eq('user_id', S.uid).gte('day', fromDate).limit(5000); },
     fetchTable: async function(table, gteCol, gteVal){
       var all = [], offset = 0;
       for (;;){
-        var q = sb.from(table).select('*'); if (gteCol) q = q.gte(gteCol, gteVal);
+        var q = sb.from(table).select('*').eq('user_id', S.uid); if (gteCol) q = q.gte(gteCol, gteVal);
         var res = await q.order(table === 'task_checks' ? 'day' : 'created_at', { ascending: true }).range(offset, offset + page - 1);
         if (res.error) return { error: res.error };
         all = all.concat(res.data || []);
@@ -1379,7 +1548,7 @@ function makeApi(sb){
     fetchEntries: async function(fromDate, since){
       var all = [], offset = 0;
       for (;;){
-        var q = sb.from('entries').select('id,entry_date,activity_id,activity_name,points,note,is_backfill,min_target,ideal_target,created_at,updated_at,deleted_at');
+        var q = sb.from('entries').select('id,entry_date,activity_id,activity_name,points,note,is_backfill,min_target,ideal_target,created_at,updated_at,deleted_at').eq('user_id', S.uid);
         q = since ? q.gt('updated_at', since).order('updated_at', { ascending: true }) : q.gte('entry_date', fromDate).order('created_at', { ascending: true });
         var res = await q.range(offset, offset + page - 1);
         if (res.error) return { error: res.error };
@@ -1390,10 +1559,29 @@ function makeApi(sb){
     },
     insertEntry: function(row){ return sb.from('entries').upsert(row, { onConflict: 'id', ignoreDuplicates: true }); },
     patchEntry: function(id, patch){ return sb.from('entries').update(patch).eq('id', id); },
-    getToken: function(){ return sb.from('sheet_tokens').select('token').maybeSingle(); },
+    getToken: function(){ return sb.from('sheet_tokens').select('token').eq('user_id', S.uid).maybeSingle(); },
+    isAdmin: function(){ return sb.rpc('is_admin'); },
+    loadTeamConfig: function(){ return sb.from('team_config').select('data').eq('id', 1).maybeSingle(); },
+    saveTeamConfig: function(data){ return sb.from('team_config').upsert({ id: 1, data: data }, { onConflict: 'id' }); },
+    saveProfile: function(name, email){ return sb.from('profiles').upsert({ user_id: S.uid, name: name, email: email }, { onConflict: 'user_id' }); },
+    teamRows: async function(table, order, gteCol, gteVal){
+      var all = [], offset = 0;
+      for (;;){
+        var q = sb.from(table).select('*'); if (gteCol) q = q.gte(gteCol, gteVal);
+        var res = await q.order(order, { ascending: true }).range(offset, offset + page - 1);
+        if (res.error) return { error: res.error };
+        all = all.concat(res.data || []);
+        if (!res.data || res.data.length < page) return { data: all };
+        offset += page;
+      }
+    },
+    listAdmins: function(){ return sb.from('admin_emails').select('email').order('email'); },
+    addAdmin: function(email){ return sb.from('admin_emails').insert({ email: email }); },
+    removeAdmin: function(email){ return sb.from('admin_emails').delete().eq('email', email); },
     setToken: function(token){ return sb.from('sheet_tokens').upsert({ user_id: S.uid, token: token }, { onConflict: 'user_id' }); },
-    subscribe: function(uidv, onEntry, onSettings, onJournal, onRow){
+    subscribe: function(uidv, onEntry, onSettings, onJournal, onRow, onTeam){
       return sb.channel('poin-' + uidv)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'team_config' }, function(p){ if (p.new && onTeam) onTeam(p.new); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'entries', filter: 'user_id=eq.' + uidv }, function(p){ if (p.new && p.new.id) onEntry(p.new); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'settings', filter: 'user_id=eq.' + uidv }, function(p){ if (p.new && p.new.data) onSettings(p.new); })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'journals', filter: 'user_id=eq.' + uidv }, function(p){ if (p.new && p.new.day) onJournal(p.new); })
@@ -1424,7 +1612,9 @@ async function startSession(session){
   S.uid = u.id;
   S.user = { id: u.id, email: u.email || '', name: (u.user_metadata && u.user_metadata.name) || '' };
   var cache = lsGet(key('cache')) || {};
-  S.config = normalizeConfig(cache.config || { recapName: S.user.name });
+  S.isAdmin = !!cache.isAdmin; S.team = cache.team || null; setPersonal(cache.config || { recapName: S.user.name });
+  S.tm = { loaded: false, loading: false, err: '', period: 7, at: 0, profiles: [], entries: [], contacts: [], journals: [], admins: [] };
+  paintAdminNav();
   S.dbDays = new Map(Object.entries(cache.days || {}));
   S.journals = Object.assign({}, cache.journals || {}, lsGet(key('jpending')) || {});
   S.jPending = lsGet(key('jpending')) || {}; S.jState = {};
@@ -1438,8 +1628,14 @@ async function startSession(session){
   try {
     var st = await api.loadSettings();
     if (st.error) throw st.error;
-    if (st.data && st.data.data) S.config = normalizeConfig(st.data.data);
-    else if (!cache.config) S.config = normalizeConfig({ recapName: S.user.name || S.user.email.split('@')[0] });
+    if (st.data && st.data.data) setPersonal(st.data.data);
+    else if (!cache.config) setPersonal({ recapName: S.user.name || S.user.email.split('@')[0] });
+    try {
+      var ad = await api.isAdmin(); if (!ad.error) S.isAdmin = ad.data === true;
+      var tc = await api.loadTeamConfig(); if (!tc.error) setTeam(tc.data && tc.data.data);
+    } catch(e){}
+    paintAdminNav();
+    try { api.saveProfile(S.config.recapName || S.user.name || '', S.user.email); } catch(e){}
     var res = await api.fetchEntries(addDays(S.today, -400), null);
     if (res.error) throw res.error;
     S.dbDays = applyRows(new Map(), res.data);
@@ -1454,9 +1650,10 @@ async function startSession(session){
     showBanner(''); saveCache(); setSync('ok'); render(); flushJournals();
     S.channel = api.subscribe(S.uid,
       function(row){ S.dbDays = applyRows(S.dbDays, [row]); S.lastPull = maxUpdated([row], S.lastPull); saveCache(); render(); },
-      function(row){ if (!S.dirty){ S.config = normalizeConfig(row.data); saveCache(); render(); } },
+      function(row){ if (!S.dirty){ setPersonal(row.data); saveCache(); render(); } },
       function(row){ if (row.day in S.jPending) return; S.journals[row.day] = row.body || ''; saveCache(); paintJournals(row.day); },
-      function(table, row){ applyUpsertOp({ table: table, row: row }); saveCache(); if (S.view !== 'settings') render(); });
+      function(table, row){ applyUpsertOp({ table: table, row: row }); saveCache(); if (S.view !== 'settings') render(); },
+      function(row){ if (!S.dirty){ setTeam(row.data); saveCache(); render(); } });
     flush();
   } catch(err){
     var off = navigator.onLine === false || isNetErr(err);
@@ -1475,8 +1672,9 @@ function endSession(){
   api.unsubscribe(S.channel);
   S.channel = null; S.uid = null; S.user = null; S.dbDays = new Map(); S.pending = []; S.lastPull = null; S.journals = {}; S.jPending = {}; S.jState = {};
   S.contacts = new Map(); S.tasks = new Map(); S.checks = new Map(); S.nameFilter = 'all'; S.nameQuery = '';
-  S.config = normalizeConfig(null); S.draft = null; S.dirty = false; S.sheet = { state: 'idle', token: null };
+  S.personal = normalizeConfig(null); S.team = null; S.isAdmin = false; S.config = normalizeConfig(null); paintAdminNav(); S.draft = null; S.dirty = false; S.sheet = { state: 'idle', token: null };
   VIEWS.forEach(function(v){ var r = $('#view-' + v); r.innerHTML = ''; delete r.dataset.sig; });
+  S.tm = { loaded: false, loading: false, err: '', period: 7, at: 0, profiles: [], entries: [], contacts: [], journals: [], admins: [] };
   showBanner(''); showScreen('auth');
 }
 
@@ -1538,6 +1736,22 @@ $('#auth-form').addEventListener('submit', async function(e){
   if (session) startSession(session); else showScreen('auth');
 })();
 if ('serviceWorker' in navigator && location.protocol === 'https:'){
-  window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+  /* New version: the service worker takes over, then the app reloads itself (or asks, if you are typing). Login stays. */
+  var swHad = !!navigator.serviceWorker.controller, swReloading = false;
+  var swReload = function(){ if (swReloading) return; swReloading = true; try { flushJournals(); } catch(e){} setTimeout(function(){ location.reload(); }, 300); };
+  navigator.serviceWorker.addEventListener('controllerchange', function(){
+    if (!swHad){ swHad = true; return; }
+    var ae = document.activeElement, busy = !$('#sheet-wrap').hidden || S.dirty || (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName));
+    if (!busy) swReload();
+    else toast('Versi baru POIN Quest sudah siap.', [['Perbarui', swReload]], 20000);
+  });
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function(reg){
+      var check = function(){ reg.update().catch(function(){}); };
+      document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible') check(); });
+      window.addEventListener('online', check);
+      setInterval(check, 15 * 60e3);
+    }).catch(function(){});
+  });
 }
 })();
