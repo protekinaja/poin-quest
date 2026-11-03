@@ -168,7 +168,7 @@ var DEFAULT_CONFIG = {
     { id:'a6', name:'Telpon Nasabah, Bikin Janji', points:1, cap:0, icon:'phone',        hint:'Nama nasabah' },
     { id:'a7', name:'Ikut Training di Vision',     points:2, cap:1, icon:'grad',         hint:'Topik training' }
   ],
-  inviteN: 'Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke {nama} untuk income protection sekiranyaa berkenan ndaak? hehe by zoom boleh ketemu boleh jugaaa nnt aku sampeerr 😁🙏🏻 no worries ini gak harus beli yaaa {sapaan}, cuma sharing ajah',
+  inviteN: 'Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke {sapaan} {nama} untuk income protection sekiranyaa berkenan ndaak? hehe by zoom boleh ketemu boleh jugaaa nnt aku sampeerr 😁🙏🏻 no worries ini gak harus beli yaaa {sapaan}, cuma sharing ajah',
   invite: 'Haii {sapaan} {nama}! Aku kan sekarang bisnis di Allianz Syariah. Izinn mau jelasin bisnisnya ke kamu sekiranyaa berkenan ndaak? Hihi by zoom boleh ketemu boleh jugaaa nnt aku sampeerr 🫶 no worries ini gak harus join yaaa {sapaan}, cuma sharing POV ajah gimana dari sisi kamu as a {profesi}'
 };
 var SAPAAN = ['Kak','Mas','Mba','Cici','Koko'];
@@ -183,7 +183,7 @@ function fillInvite(tpl, sapaan, nama, profesi){
     .replace(/[ \t]+/g, ' ').replace(/ +([,.!?\n])/g, '$1').replace(/^ +| +$/gm, '');
 }
 /* Older built-in script texts are swapped for the current one; texts the user wrote stay. */
-var OLD_INVITES = ['Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke kamu untuk income protection', 'Hai {sapaan} {nama}\n\nAku sekarang bisnis di Allianz Syariah.', 'Haii {sapaan} {nama}! Aku sekarang di Allianz Syariah nih.', 'Haii {sapaan} {nama}! Aku sekarang bisnis di Allianz Syariah nih.'];
+var OLD_INVITES = ['Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke {nama} untuk', 'Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke kamu untuk income protection', 'Hai {sapaan} {nama}\n\nAku sekarang bisnis di Allianz Syariah.', 'Haii {sapaan} {nama}! Aku sekarang di Allianz Syariah nih.', 'Haii {sapaan} {nama}! Aku sekarang bisnis di Allianz Syariah nih.'];
 function pickInvite(v, def){
   if (typeof v !== 'string' || !v.trim()) return def;
   if (OLD_INVITES.some(function(o){ return v.indexOf(o) === 0; })) return def;
