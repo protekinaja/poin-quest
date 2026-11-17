@@ -282,7 +282,7 @@ function authMessage(err){
   if (/fetch|network|load failed/i.test(m) || !m) return 'Tidak ada koneksi ke server. Coba lagi saat online.';
   return 'Gagal: ' + m;
 }
-function isNetErr(err){ return !err || !err.code || err.status === 0 || /fetch|network|load failed/i.test(err.message || ''); }
+function isNetErr(err){ return !err || !err.code || err.status === 0 || err.status >= 500 || /fetch|network|load failed/i.test(err.message || ''); }
 
 /* expose for tests when run outside a browser */
 if (typeof window === 'undefined' || !window.document){
@@ -1525,6 +1525,15 @@ function makeApi(sb){
   var page = 1000;
   return {
     getSession: function(){ return sb.auth.getSession().then(function(r){ return r.data && r.data.session; }); },
+    /* Supabase may have dropped the saved login while the server was down; refresh it ourselves with the saved token. */
+    restore: async function(snap){
+      var r = await fetch(CFG.supabaseUrl.replace(/\/+$/, '') + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', cache: 'no-store',
+        headers: { apikey: CFG.supabaseKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: snap.refresh_token }) });
+      if (!r.ok) return null;
+      var j = await r.json(); if (!j || !j.access_token) return null;
+      var x = await sb.auth.setSession({ access_token: j.access_token, refresh_token: j.refresh_token });
+      return x.data && x.data.session;
+    },
     onAuth: function(cb){ return sb.auth.onAuthStateChange(function(ev, session){ cb(ev, session); }); },
     signIn: function(email, pw){ return sb.auth.signInWithPassword({ email: email, password: pw }); },
     signUp: function(email, pw, name){ return sb.auth.signUp({ email: email, password: pw, options: { data: { name: name } } }); },
@@ -1658,17 +1667,21 @@ async function startSession(session){
   } catch(err){
     var off = navigator.onLine === false || isNetErr(err);
     setSync(off ? 'offline' : 'error');
-    showBanner(off ? 'Sedang offline. XP yang tampil dari perangkat ini, dan aksi baru dikirim otomatis saat online.' : 'Data akun belum bisa dimuat: ' + (err.message || 'galat tak dikenal') + '. Coba muat ulang.');
+    showBanner(S.serverDown ? SERVER_DOWN_MSG : off ? 'Sedang offline. XP yang tampil dari perangkat ini, dan aksi baru dikirim otomatis saat online.' : 'Data akun belum bisa dimuat: ' + (err.message || 'galat tak dikenal') + '. Coba muat ulang.');
     render();
     if (off) window.addEventListener('online', function retry(){ window.removeEventListener('online', retry); S.uid = null; startSession(session); });
   }
 }
 async function logout(){
+  var uid = S.uid; S.loggingOut = true; S.serverDown = false;
   try { await api.signOut(); } catch(e){}
-  endSession();
+  if (uid){ try { ['cache','pending','jpending'].forEach(function(k){ localStorage.removeItem('poinq.' + uid + '.' + k); }); } catch(e){} }
+  S.loggingOut = false;
+  if (S.uid) endSession();
 }
+/* Leaves this device's copy (and unsent actions) in place, so signing back in to the same account picks them up. */
 function endSession(){
-  if (S.uid){ try { localStorage.removeItem(key('cache')); localStorage.removeItem(key('pending')); localStorage.removeItem(key('jpending')); } catch(e){} }
+  clearTimeout(S.serverTimer);
   api.unsubscribe(S.channel);
   S.channel = null; S.uid = null; S.user = null; S.dbDays = new Map(); S.pending = []; S.lastPull = null; S.journals = {}; S.jPending = {}; S.jState = {};
   S.contacts = new Map(); S.tasks = new Map(); S.checks = new Map(); S.nameFilter = 'all'; S.nameQuery = '';
@@ -1723,17 +1736,49 @@ $('#auth-form').addEventListener('submit', async function(e){
 });
 
 /* ---------- boot ---------- */
+/* The login saved on this device, read before Supabase touches it. */
+function storedSession(){
+  try { var x = JSON.parse(localStorage.getItem('poinq.auth') || 'null'); x = x && (x.currentSession || x); return x && x.user && x.user.id && x.refresh_token ? x : null; } catch(e){ return null; }
+}
+/* Is the Supabase server answering at all? Anything under 500 counts as up. */
+async function serverUp(){
+  try {
+    var ctl = window.AbortController ? new AbortController() : null, tm = setTimeout(function(){ if (ctl) ctl.abort(); }, 6000);
+    var res = await fetch(CFG.supabaseUrl.replace(/\/+$/, '') + '/auth/v1/health', { headers: { apikey: CFG.supabaseKey }, cache: 'no-store', signal: ctl && ctl.signal });
+    clearTimeout(tm); return res.status < 500;
+  } catch(e){ return false; }
+}
+var SERVER_DOWN_MSG = 'Server POIN Quest belum bisa dihubungi. Aplikasi tetap bisa dipakai: aksi disimpan di perangkat ini dan terkirim otomatis begitu server tersambung lagi.';
+/* Running from the saved login while the server is unreachable; keep checking until it answers. */
+function watchServer(snap){
+  S.serverDown = true; showBanner(SERVER_DOWN_MSG);
+  clearTimeout(S.serverTimer);
+  S.serverTimer = setTimeout(async function check(){
+    if (!S.serverDown || !S.uid) return;
+    if (!(await serverUp())){ S.serverTimer = setTimeout(check, 20000); return; }
+    var ses = null;
+    try { ses = await api.getSession(); } catch(e){}
+    if (!ses){ try { ses = await api.restore(snap); } catch(e){} }
+    S.serverDown = false; showBanner('');
+    if (!ses){ endSession(); var er = $('#auth-err'); if (er) er.textContent = 'Sesi login sudah berakhir. Masuk lagi, aksi yang belum terkirim tetap aman.'; return; }
+    S.retry = 0; flush(); pull(); flushJournals();
+  }, 15000);
+}
 (async function boot(){
   var ready = CFG.supabaseUrl && CFG.supabaseKey && !/ISI-/.test(CFG.supabaseUrl + CFG.supabaseKey);
   if (!ready || !window.supabase){ showScreen('setup'); return; }
+  var snap = window.__POIN_TEST_API__ ? null : storedSession();
   api = window.__POIN_TEST_API__ || makeApi(window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'poinq.auth' } }));
   api.onAuth(function(ev, session){
-    if (ev === 'SIGNED_OUT'){ if (S.uid) endSession(); }
+    if (ev === 'SIGNED_OUT'){ if (S.uid && (!S.serverDown || S.loggingOut)) endSession(); }
     else if (session && ev === 'SIGNED_IN' && !S.uid) startSession(session);
   });
-  var session = null;
-  try { session = await api.getSession(); } catch(e){}
-  if (session) startSession(session); else showScreen('auth');
+  /* Never wait forever: if the server does not answer within 6 seconds, open with the saved login and data. */
+  var session = null, timedOut = false;
+  try { session = await Promise.race([api.getSession(), new Promise(function(r){ setTimeout(function(){ timedOut = true; r(null); }, 6000); })]); } catch(e){}
+  if (session){ if (!S.uid) startSession(session); return; }
+  if (snap && (timedOut || !(await serverUp()))){ S.serverDown = true; if (!S.uid) startSession(snap); watchServer(snap); return; }
+  if (!S.uid) showScreen('auth');
 })();
 if ('serviceWorker' in navigator && location.protocol === 'https:'){
   /* New version: the service worker takes over, then the app reloads itself (or asks, if you are typing). Login stays. */
