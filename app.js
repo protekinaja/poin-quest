@@ -168,10 +168,10 @@ var DEFAULT_CONFIG = {
     { id:'a6', name:'Telpon Nasabah, Bikin Janji', points:1, cap:0, icon:'phone',        hint:'Nama nasabah' },
     { id:'a7', name:'Ikut Training di Vision',     points:2, cap:1, icon:'grad',         hint:'Topik training' }
   ],
-  inviteN: 'Hallooo {nama}! gue kan sekarang di Allianz Syariah. Izinn mau market survey ke lu {nama} untuk income protection sekiranyaa berkenan ndaak? hehe by zoom boleh ketemu boleh jugaaa nnt gue sampeerr\n\nno worries ini gak harus beli yaaa {nama}, cuma sharing ajaaa 😁',
+  inviteN: 'Hallooo {sapaan} {nama}! gue kan sekarang di Allianz Syariah. Izinn mau market survey ke lu {sapaan} {nama} untuk income protection sekiranyaa berkenan ndaak? hehe by zoom boleh ketemu boleh jugaaa nnt gue sampeerr\n\nno worries ini gak harus beli yaaa {sapaan}, cuma sharing ajaaa 😁',
   invite: 'Haii {sapaan} {nama}! Aku kan sekarang bisnis di Allianz Syariah. Izinn mau jelasin bisnisnya ke {sapaan} {nama} sekiranyaa berkenan ndaak? hehe by zoom boleh ketemu boleh jugaaa nnt aku sampeerr 😁🙏🏻 no worries ini gak harus join yaaa {sapaan}, cuma sharing POV ajah gimana dari sisi {sapaan} as a {profesi}'
 };
-var SAPAAN = ['Nama saja','Kak','Mas','Mba','Cici','Koko'];
+var SAPAAN = ['Nama saja','Kak','Mas','Mba','Ci','Ko','Pak','Bu','Bang'];
 var PROFESI = ['Doctor','Banker','Lawyer','Businessman','Karyawan'];
 /* Fill the janji temu script. Empty profesi drops the "as a {profesi}" phrase. */
 function fillInvite(tpl, sapaan, nama, profesi){
@@ -184,7 +184,7 @@ function fillInvite(tpl, sapaan, nama, profesi){
     .replace(/[ \t]+/g, ' ').replace(/ +([,.!?\n])/g, '$1').replace(/^ +| +$/gm, '');
 }
 /* Older built-in script texts are swapped for the current one; texts the user wrote stay. */
-var OLD_INVITES = ['Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke {sapaan} {nama}', 'Haii {sapaan} {nama}! Aku kan sekarang bisnis di Allianz Syariah. Izinn mau jelasin bisnisnya ke kamu', 'Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke {nama} untuk', 'Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke kamu untuk income protection', 'Hai {sapaan} {nama}\n\nAku sekarang bisnis di Allianz Syariah.', 'Haii {sapaan} {nama}! Aku sekarang di Allianz Syariah nih.', 'Haii {sapaan} {nama}! Aku sekarang bisnis di Allianz Syariah nih.'];
+var OLD_INVITES = ['Hallooo {nama}! gue kan sekarang di Allianz Syariah. Izinn mau market survey ke lu {nama}', 'Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke {sapaan} {nama}', 'Haii {sapaan} {nama}! Aku kan sekarang bisnis di Allianz Syariah. Izinn mau jelasin bisnisnya ke kamu', 'Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke {nama} untuk', 'Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke kamu untuk income protection', 'Hai {sapaan} {nama}\n\nAku sekarang bisnis di Allianz Syariah.', 'Haii {sapaan} {nama}! Aku sekarang di Allianz Syariah nih.', 'Haii {sapaan} {nama}! Aku sekarang bisnis di Allianz Syariah nih.'];
 function pickInvite(v, def){
   if (typeof v !== 'string' || !v.trim()) return def;
   if (OLD_INVITES.some(function(o){ return v.indexOf(o) === 0; })) return def;
@@ -1113,7 +1113,7 @@ function openContact(id){
 function openScript(c, back){
   var key = 'poinq.inv.' + c.id, saved = {};
   try { saved = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch(e){}
-  var st = { jenis: saved.jenis === 'tim' ? 'tim' : 'nasabah', sapaan: saved.sapaan || 'Kak', nama: saved.nama || String(c.name).split(/\s+/)[0], profesi: saved.profesi == null ? '' : saved.profesi };
+  var st = { jenis: saved.jenis === 'tim' ? 'tim' : 'nasabah', sapaan: SAPAAN.indexOf(saved.sapaan) !== -1 ? saved.sapaan : saved.sapaan === 'Cici' ? 'Ci' : saved.sapaan === 'Koko' ? 'Ko' : 'Nama saja', nama: saved.nama || String(c.name).split(/\s+/)[0], profesi: saved.profesi == null ? '' : saved.profesi };
   var wa = waLink(c.phone);
   var chips = function(list, cur, attr){ return list.map(function(x){ return '<button type="button" class="chip-btn' + (x === cur ? ' on' : '') + '" data-' + attr + '="' + esc(x) + '" aria-pressed="' + (x === cur) + '">' + esc(x) + '</button>'; }).join(''); };
   openSheet('<div><h2 id="sheet-title">Script janji temu</h2><p class="sub">Untuk ' + esc(c.name) + '. Pilih sapaan dan profesinya, lalu salin atau kirim lewat WhatsApp.</p></div>' +
