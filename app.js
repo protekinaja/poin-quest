@@ -168,10 +168,10 @@ var DEFAULT_CONFIG = {
     { id:'a6', name:'Telpon Nasabah, Bikin Janji', points:1, cap:0, icon:'phone',        hint:'Nama nasabah' },
     { id:'a7', name:'Ikut Training di Vision',     points:2, cap:1, icon:'grad',         hint:'Topik training' }
   ],
-  inviteN: 'Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke {sapaan} {nama} untuk income protection sekiranyaa berkenan ndaak? hehe by zoom boleh ketemu boleh jugaaa nnt aku sampeerr 😁🙏🏻 no worries ini gak harus beli yaaa {sapaan}, cuma sharing ajah',
+  inviteN: 'Hallooo {nama}! gue kan sekarang di Allianz Syariah. Izinn mau market survey ke lu {nama} untuk income protection sekiranyaa berkenan ndaak? hehe by zoom boleh ketemu boleh jugaaa nnt gue sampeerr\n\nno worries ini gak harus beli yaaa {nama}, cuma sharing ajaaa 😁',
   invite: 'Haii {sapaan} {nama}! Aku kan sekarang bisnis di Allianz Syariah. Izinn mau jelasin bisnisnya ke {sapaan} {nama} sekiranyaa berkenan ndaak? hehe by zoom boleh ketemu boleh jugaaa nnt aku sampeerr 😁🙏🏻 no worries ini gak harus join yaaa {sapaan}, cuma sharing POV ajah gimana dari sisi {sapaan} as a {profesi}'
 };
-var SAPAAN = ['Kak','Mas','Mba','Cici','Koko'];
+var SAPAAN = ['Nama saja','Kak','Mas','Mba','Cici','Koko'];
 var PROFESI = ['Doctor','Banker','Lawyer','Businessman','Karyawan'];
 /* Fill the janji temu script. Empty profesi drops the "as a {profesi}" phrase. */
 function fillInvite(tpl, sapaan, nama, profesi){
@@ -179,11 +179,12 @@ function fillInvite(tpl, sapaan, nama, profesi){
   profesi = String(profesi || '').trim();
   if (!profesi) t = t.replace(/[ ,]*\b(as an?|sebagai) \{profesi\}/gi, '').replace(/\{profesi\}/g, '');
   else t = t.replace(/\bas an? \{profesi\}/gi, (/^[aiueo]/i.test(profesi) ? 'as an ' : 'as a ') + '{profesi}');
+  if (!sapaan) t = t.replace(/\{sapaan\} \{nama\}/g, '{nama}').replace(/\{sapaan\}/g, '{nama}');
   return t.replace(/\{sapaan\}/g, sapaan || '').replace(/\{nama\}/g, nama || '').replace(/\{profesi\}/g, profesi)
     .replace(/[ \t]+/g, ' ').replace(/ +([,.!?\n])/g, '$1').replace(/^ +| +$/gm, '');
 }
 /* Older built-in script texts are swapped for the current one; texts the user wrote stay. */
-var OLD_INVITES = ['Haii {sapaan} {nama}! Aku kan sekarang bisnis di Allianz Syariah. Izinn mau jelasin bisnisnya ke kamu', 'Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke {nama} untuk', 'Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke kamu untuk income protection', 'Hai {sapaan} {nama}\n\nAku sekarang bisnis di Allianz Syariah.', 'Haii {sapaan} {nama}! Aku sekarang di Allianz Syariah nih.', 'Haii {sapaan} {nama}! Aku sekarang bisnis di Allianz Syariah nih.'];
+var OLD_INVITES = ['Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke {sapaan} {nama}', 'Haii {sapaan} {nama}! Aku kan sekarang bisnis di Allianz Syariah. Izinn mau jelasin bisnisnya ke kamu', 'Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke {nama} untuk', 'Haii {sapaan} {nama}! Aku kan sekarang di Allianz Syariah. Izinn mau market survey ke kamu untuk income protection', 'Hai {sapaan} {nama}\n\nAku sekarang bisnis di Allianz Syariah.', 'Haii {sapaan} {nama}! Aku sekarang di Allianz Syariah nih.', 'Haii {sapaan} {nama}! Aku sekarang bisnis di Allianz Syariah nih.'];
 function pickInvite(v, def){
   if (typeof v !== 'string' || !v.trim()) return def;
   if (OLD_INVITES.some(function(o){ return v.indexOf(o) === 0; })) return def;
@@ -1117,8 +1118,8 @@ function openScript(c, back){
   var chips = function(list, cur, attr){ return list.map(function(x){ return '<button type="button" class="chip-btn' + (x === cur ? ' on' : '') + '" data-' + attr + '="' + esc(x) + '" aria-pressed="' + (x === cur) + '">' + esc(x) + '</button>'; }).join(''); };
   openSheet('<div><h2 id="sheet-title">Script janji temu</h2><p class="sub">Untuk ' + esc(c.name) + '. Pilih sapaan dan profesinya, lalu salin atau kirim lewat WhatsApp.</p></div>' +
     '<div class="field"><span>Untuk</span><div class="chips" id="s-jenis"><button type="button" class="chip-btn" data-jenis="nasabah">Nasabah</button><button type="button" class="chip-btn" data-jenis="tim">Calon tim</button></div></div>' +
-    '<div class="field"><span>Sapaan</span><div class="chips" id="s-sap">' + chips(SAPAAN, st.sapaan, 'sap') + '</div></div>' +
-    '<label class="field" for="s-nama"><span>Nama panggilan</span><input type="text" id="s-nama" maxlength="40" autocomplete="off" value="' + esc(st.nama) + '"></label>' +
+    '<div class="field" id="s-sapwrap"><span>Sapaan</span><div class="chips" id="s-sap">' + chips(SAPAAN, st.sapaan, 'sap') + '</div></div>' +
+    '<label class="field" for="s-nama"><span>Nama panggilan (tulis seperti di chat, misalnya ditt)</span><input type="text" id="s-nama" maxlength="40" autocomplete="off" value="' + esc(st.nama) + '"></label>' +
     '<div id="s-profwrap"><div class="field"><span>Profesi (boleh kosong)</span><div class="chips" id="s-pro">' + chips(PROFESI, st.profesi, 'pro') + '</div></div>' +
     '<label class="field" for="s-prof"><span>Atau tulis sendiri</span><input type="text" id="s-prof" maxlength="40" autocomplete="off" placeholder="Contoh: engineer" value="' + esc(PROFESI.indexOf(st.profesi) === -1 ? st.profesi : '') + '"></label></div>' +
     '<label class="field" for="s-text"><span>Pesan (bisa diedit sebelum dikirim)</span><textarea id="s-text" rows="8"></textarea></label>' +
@@ -1130,7 +1131,8 @@ function openScript(c, back){
       var ta = $('#s-text', s), waBtn = $('#s-wa', s);
       var sync = function(){ waBtn.href = (wa || 'https://wa.me/') + '?text=' + encodeURIComponent(ta.value); };
       var tpl = function(){ return st.jenis === 'tim' ? S.config.invite : S.config.inviteN; };
-      var fill = function(){ ta.value = fillInvite(tpl(), st.sapaan, st.nama, st.profesi); sync(); lsSet(key, st);
+      var fill = function(){ ta.value = fillInvite(tpl(), st.sapaan === 'Nama saja' ? '' : st.sapaan, st.nama, st.profesi); sync(); lsSet(key, st);
+        $('#s-sapwrap', s).hidden = tpl().indexOf('{sapaan}') === -1;
         $('#s-profwrap', s).hidden = tpl().indexOf('{profesi}') === -1;
         $$('[data-jenis]', s).forEach(function(b){ var on = b.dataset.jenis === st.jenis; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); };
       $('#s-jenis', s).addEventListener('click', function(e){ var b = e.target.closest('[data-jenis]'); if (!b) return; st.jenis = b.dataset.jenis; fill(); });
